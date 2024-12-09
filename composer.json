@@ -1,0 +1,72 @@
+{
+    "name": "tiny-blocks/environment-variable",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/tiny-blocks/environment-variable",
+    "description": "Provides a simple and flexible solution for managing environment variables, with easy access, type conversions, and validation handling.",
+    "prefer-stable": true,
+    "minimum-stability": "stable",
+    "keywords": [
+        "psr",
+        "env",
+        "tiny-blocks",
+        "environment-variable"
+    ],
+    "authors": [
+        {
+            "name": "Gustavo Freze de Araujo Santos",
+            "homepage": "https://github.com/gustavofreze"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/tiny-blocks/environment-variable/issues",
+        "source": "https://github.com/tiny-blocks/environment-variable"
+    },
+    "autoload": {
+        "psr-4": {
+            "TinyBlocks\\EnvironmentVariable\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TinyBlocks\\EnvironmentVariable\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^8.3"
+    },
+    "require-dev": {
+        "phpmd/phpmd": "^2.15",
+        "phpunit/phpunit": "^11",
+        "phpstan/phpstan": "^1",
+        "dg/bypass-finals": "^1.8",
+        "infection/infection": "^0",
+        "squizlabs/php_codesniffer": "^3"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "infection/extension-installer": true
+        }
+    },
+    "scripts": {
+        "test": "phpunit --configuration phpunit.xml tests",
+        "phpcs": "phpcs --standard=PSR12 --extensions=php ./src",
+        "phpmd": "phpmd ./src text phpmd.xml --suffixes php --ignore-violations-on-exit",
+        "phpstan": "phpstan analyse -c phpstan.neon.dist --quiet --no-progress",
+        "mutation-test": "infection --only-covered --threads=max --logger-html=report/coverage/mutation-report.html --coverage=report/coverage",
+        "test-no-coverage": "phpunit --configuration phpunit.xml --no-coverage tests",
+        "review": [
+            "@phpcs",
+            "@phpmd",
+            "@phpstan"
+        ],
+        "tests": [
+            "@test",
+            "@mutation-test"
+        ],
+        "tests-no-coverage": [
+            "@test-no-coverage"
+        ]
+    }
+}
