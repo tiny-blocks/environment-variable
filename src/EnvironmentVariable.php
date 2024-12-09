@@ -22,6 +22,15 @@ final readonly class EnvironmentVariable implements Environment
             : new EnvironmentVariable(value: $environmentVariable, variable: $name);
     }
 
+    public static function fromOrDefault(string $name, string $defaultValueIfNotFound = null): EnvironmentVariable
+    {
+        $environmentVariable = getenv($name);
+
+        return $environmentVariable === false
+            ? new EnvironmentVariable(value: (string)$defaultValueIfNotFound, variable: $name)
+            : new EnvironmentVariable(value: $environmentVariable, variable: $name);
+    }
+
     public function hasValue(): bool
     {
         return match (strtolower(trim($this->value))) {
