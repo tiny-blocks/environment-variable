@@ -50,6 +50,43 @@ final class EnvironmentVariableTest extends TestCase
         self::assertEquals($expected, $actual);
     }
 
+    public function testFromOrDefaultWithDefaultValue(): void
+    {
+        /** @Given that the environment variable 'NON_EXISTENT_MY_VAR' does not exist */
+        $variable = 'NON_EXISTENT_MY_VAR';
+
+        /** @When I try to get the value of the environment variable with a default value */
+        $actual = EnvironmentVariable::fromOrDefault(name: $variable, defaultValueIfNotFound: '0');
+
+        /** @Then the result should match the default value */
+        self::assertEquals(0, $actual->toInteger());
+    }
+
+    public function testFromOrDefaultWithExistingVariable(): void
+    {
+        /** @Given that the environment variable 'MY_VAR' exists with the value 'existing_value' */
+        putenv(sprintf('%s=%s', 'MY_VAR', 'existing_value'));
+
+        /** @When I try to get the value of the environment variable */
+        $actual = EnvironmentVariable::fromOrDefault(name: 'MY_VAR', defaultValueIfNotFound: 'default_value');
+
+        /** @Then the result should match the existing value */
+        self::assertEquals('existing_value', $actual->toString());
+    }
+
+    public function testFromOrDefaultWhenVariableIsMissingAndNoDefault(): void
+    {
+        /** @Given that the environment variable 'NON_EXISTENT_VAR' does not exist */
+        $variable = 'NON_EXISTENT_VAR';
+
+        /** @When I try to get the value of the missing environment variable without a default value */
+        $actual = EnvironmentVariable::fromOrDefault(name: $variable);
+
+        /** @Then the result should be no value */
+        self::assertEmpty($actual->toString());
+        self::assertFalse($actual->hasValue());
+    }
+
     #[DataProvider('hasValueDataProvider')]
     public function testHasValue(mixed $value, string $variable): void
     {
@@ -225,15 +262,15 @@ final class EnvironmentVariableTest extends TestCase
     public static function hasNoValueDataProvider(): array
     {
         return [
-            'Null value'        => [
+            'Null value'              => [
                 'value'    => null,
                 'variable' => 'NULL_VALUE'
             ],
-            'Empty string'      => [
+            'Empty string'            => [
                 'value'    => '',
                 'variable' => 'EMPTY_STRING'
             ],
-            'String null value' => [
+            'String null value'       => [
                 'value'    => 'NULL',
                 'variable' => 'NULL_VALUE'
             ],

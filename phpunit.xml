@@ -6,6 +6,7 @@
          failOnRisky="true"
          failOnWarning="true"
          cacheDirectory=".phpunit.cache"
+         executionOrder="random"
          beStrictAboutOutputDuringTests="true">
 
     <source>
