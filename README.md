@@ -35,6 +35,16 @@ To create and work with environment variables, use the `from` method to get an i
 EnvironmentVariable::from(name: 'MY_VAR');
 ```
 
+To retrieve an environment variable with the option of providing a default value in case the variable does not exist,
+use the `fromOrDefault` method.
+
+If the environment variable is not found, the method will return the provided default value instead of throwing an
+exception.
+
+```php
+EnvironmentVariable::fromOrDefault(name: 'MY_VAR', defaultValueIfNotFound: 'default_value');
+```
+
 ### Conversions
 
 Once you have an instance of the environment variable, you can convert its value into various types.

@@ -22,6 +22,15 @@ interface Environment
     public static function from(string $name): Environment;
 
     /**
+     * Retrieves an instance of the environment variable or uses a default value if not found.
+     *
+     * @param string $name The name of the environment variable.
+     * @param string|null $defaultValueIfNotFound The default value to use if the environment variable is not found.
+     * @return EnvironmentVariable The environment variable instance, either with the found value or the default.
+     */
+    public static function fromOrDefault(string $name, string $defaultValueIfNotFound = null): EnvironmentVariable;
+
+    /**
      * Checks if the environment variable has a value. Values like `false`, `0`, and `-1` are valid and non-empty.
      *
      * @return bool True if the environment variable has a valid value, false otherwise.
