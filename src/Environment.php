@@ -28,7 +28,7 @@ interface Environment
      * @param string|null $defaultValueIfNotFound The default value to use if the environment variable is not found.
      * @return EnvironmentVariable The environment variable instance, either with the found value or the default.
      */
-    public static function fromOrDefault(string $name, string $defaultValueIfNotFound = null): EnvironmentVariable;
+    public static function fromOrDefault(string $name, ?string $defaultValueIfNotFound = null): EnvironmentVariable;
 
     /**
      * Checks if the environment variable has a value. Values like `false`, `0`, and `-1` are valid and non-empty.

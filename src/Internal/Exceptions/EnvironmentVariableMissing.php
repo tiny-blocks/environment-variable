@@ -8,10 +8,10 @@ use InvalidArgumentException;
 
 final class EnvironmentVariableMissing extends InvalidArgumentException
 {
-    public function __construct(string $variable)
+    public function __construct(private readonly string $variable)
     {
         $template = 'Environment variable <%s> is missing.';
 
-        parent::__construct(message: sprintf($template, $variable));
+        parent::__construct(message: sprintf($template, $this->variable));
     }
 }
