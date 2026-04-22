@@ -2,157 +2,263 @@
 
 declare(strict_types=1);
 
-namespace TinyBlocks\EnvironmentVariable;
+namespace Test\TinyBlocks\EnvironmentVariable;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentValueNotBoolean;
+use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentValueNotInteger;
 use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentVariableMissing;
-use TinyBlocks\EnvironmentVariable\Internal\Exceptions\InvalidEnvironmentValue;
 
 final class EnvironmentVariableTest extends TestCase
 {
-    #[DataProvider('stringConversionDataProvider')]
-    public function testConvertToString(mixed $value, string $variable, string $expected): void
+    private const array MANAGED_VARIABLES = [
+        'MY_VAR',
+        'VALID_INT',
+        'INVALID_INT',
+        'INVALID_BOOL',
+        'NON_EXISTENT',
+        'NULL_VALUE',
+        'EMPTY_STRING',
+        'VALID_STRING',
+        'NEGATIVE_INT',
+        'NUMERIC_TRUE',
+        'BOOLEAN_TRUE',
+        'STRING_VALUE',
+        'INTEGER_ZERO',
+        'NUMERIC_FALSE',
+        'BOOLEAN_FALSE',
+        'NON_SCALAR_ENV',
+        'NUMERIC_STRING',
+        'NON_EXISTENT_VAR',
+        'INTEGER_POSITIVE',
+        'INTEGER_NEGATIVE',
+        'NON_SCALAR_SERVER',
+        'STRING_WITH_SPACES',
+        'FROM_ENV_SUPERGLOBAL',
+        'NON_EXISTENT_MY_VAR',
+        'FROM_SERVER_SUPERGLOBAL'
+    ];
+
+    protected function tearDown(): void
     {
-        /** @Given the environment variable is set with the given string value */
+        foreach (self::MANAGED_VARIABLES as $variable) {
+            putenv($variable);
+            unset($_ENV[$variable], $_SERVER[$variable]);
+        }
+    }
+
+    #[DataProvider('stringConversionDataProvider')]
+    public function testToStringWhenValuePresentThenReturnsExpectedString(
+        mixed $value,
+        string $variable,
+        string $expected
+    ): void {
+        /** @Given the environment variable is set with the given raw value */
         putenv(sprintf('%s=%s', $variable, $value));
 
-        /** @When I try to convert the environment variable value to a string */
+        /** @When converting the environment variable to string */
         $actual = EnvironmentVariable::from(name: $variable)->toString();
 
-        /** @Then the result should match the expected string value */
-        self::assertEquals($expected, $actual);
+        /** @Then the returned string matches the expected representation */
+        self::assertSame($expected, $actual);
     }
 
     #[DataProvider('integerConversionDataProvider')]
-    public function testConvertToInteger(mixed $value, string $variable, int $expected): void
-    {
-        /** @Given the environment variable is set with the given integer value */
+    public function testToIntegerWhenValueIsNumericThenReturnsExpectedInteger(
+        string $value,
+        string $variable,
+        int $expected
+    ): void {
+        /** @Given the environment variable is set with a numeric string */
         putenv(sprintf('%s=%s', $variable, $value));
 
-        /** @When I try to convert the environment variable value to an integer */
+        /** @When converting the environment variable to integer */
         $actual = EnvironmentVariable::from(name: $variable)->toInteger();
 
-        /** @Then the result should match the expected integer value */
-        self::assertEquals($expected, $actual);
+        /** @Then the returned integer matches the expected value */
+        self::assertSame($expected, $actual);
     }
 
     #[DataProvider('booleanConversionDataProvider')]
-    public function testConvertToBoolean(mixed $value, string $variable, bool $expected): void
-    {
-        /** @Given the environment variable is set with the given boolean value */
+    public function testToBooleanWhenValueIsBooleanLikeThenReturnsExpectedBoolean(
+        string $value,
+        string $variable,
+        bool $expected
+    ): void {
+        /** @Given the environment variable is set with a boolean-like value */
         putenv(sprintf('%s=%s', $variable, $value));
 
-        /** @When I try to convert the environment variable value to a boolean */
+        /** @When converting the environment variable to boolean */
         $actual = EnvironmentVariable::from(name: $variable)->toBoolean();
 
-        /** @Then the result should match the expected boolean value */
-        self::assertEquals($expected, $actual);
+        /** @Then the returned boolean matches the expected value */
+        self::assertSame($expected, $actual);
     }
 
-    public function testFromOrDefaultWithDefaultValue(): void
+    public function testFromOrDefaultWhenVariableMissingThenReturnsDefault(): void
     {
-        /** @Given that the environment variable 'NON_EXISTENT_MY_VAR' does not exist */
+        /** @Given the environment variable does not exist */
         $variable = 'NON_EXISTENT_MY_VAR';
 
-        /** @When I try to get the value of the environment variable with a default value */
+        /** @When requesting the variable with a default value */
         $actual = EnvironmentVariable::fromOrDefault(name: $variable, defaultValueIfNotFound: '0');
 
-        /** @Then the result should match the default value */
-        self::assertEquals(0, $actual->toInteger());
+        /** @Then the returned instance exposes the default value */
+        self::assertSame(0, $actual->toInteger());
     }
 
-    public function testFromOrDefaultWithExistingVariable(): void
+    public function testFromOrDefaultWhenVariableExistsThenReturnsExistingValue(): void
     {
-        /** @Given that the environment variable 'MY_VAR' exists with the value 'existing_value' */
+        /** @Given the environment variable exists with an existing value */
         putenv(sprintf('%s=%s', 'MY_VAR', 'existing_value'));
 
-        /** @When I try to get the value of the environment variable */
+        /** @When requesting the variable with a default value */
         $actual = EnvironmentVariable::fromOrDefault(name: 'MY_VAR', defaultValueIfNotFound: 'default_value');
 
-        /** @Then the result should match the existing value */
-        self::assertEquals('existing_value', $actual->toString());
+        /** @Then the returned instance exposes the existing value */
+        self::assertSame('existing_value', $actual->toString());
     }
 
-    public function testFromOrDefaultWhenVariableIsMissingAndNoDefault(): void
+    public function testFromOrDefaultWhenVariableMissingAndNoDefaultThenToStringIsEmpty(): void
     {
-        /** @Given that the environment variable 'NON_EXISTENT_VAR' does not exist */
+        /** @Given the environment variable does not exist */
         $variable = 'NON_EXISTENT_VAR';
 
-        /** @When I try to get the value of the missing environment variable without a default value */
+        /** @When requesting the variable without a default value */
         $actual = EnvironmentVariable::fromOrDefault(name: $variable);
 
-        /** @Then the result should be no value */
-        self::assertEmpty($actual->toString());
+        /** @Then the returned instance exposes an empty string */
+        self::assertSame('', $actual->toString());
+    }
+
+    public function testFromOrDefaultWhenVariableMissingAndNoDefaultThenHasValueIsFalse(): void
+    {
+        /** @Given the environment variable does not exist */
+        $variable = 'NON_EXISTENT_VAR';
+
+        /** @When requesting the variable without a default value */
+        $actual = EnvironmentVariable::fromOrDefault(name: $variable);
+
+        /** @Then the returned instance reports no value */
         self::assertFalse($actual->hasValue());
     }
 
     #[DataProvider('hasValueDataProvider')]
-    public function testHasValue(mixed $value, string $variable): void
+    public function testHasValueWhenValueIsMeaningfulThenReturnsTrue(string $value, string $variable): void
     {
-        /** @Given the environment variable is set with the given value */
+        /** @Given the environment variable is set with a meaningful value */
         putenv(sprintf('%s=%s', $variable, $value));
 
-        /** @When I check if the environment variable has a value */
+        /** @When checking if the environment variable has a value */
         $actual = EnvironmentVariable::from(name: $variable)->hasValue();
 
-        /** @Then the result should be true (has value) */
+        /** @Then the check reports the presence of a value */
         self::assertTrue($actual);
     }
 
     #[DataProvider('hasNoValueDataProvider')]
-    public function testHasNoValue(mixed $value, string $variable): void
+    public function testHasValueWhenValueIsAbsentOrNullLikeThenReturnsFalse(?string $value, string $variable): void
     {
-        /** @Given the environment variable is set with the given value */
+        /** @Given the environment variable is set with a null-like value */
         putenv(sprintf('%s=%s', $variable, $value));
 
-        /** @When I check if the environment variable has a value */
+        /** @When checking if the environment variable has a value */
         $actual = EnvironmentVariable::from(name: $variable)->hasValue();
 
-        /** @Then the result should be false (no value) */
+        /** @Then the check reports the absence of a value */
         self::assertFalse($actual);
     }
 
-    public function testExceptionWhenVariableIsMissing(): void
+    public function testFromWhenVariableIsMissingThenThrowsEnvironmentVariableMissing(): void
     {
-        /** @Given that the environment variable 'NON_EXISTENT' does not exist */
+        /** @Given the environment variable does not exist */
         $variable = 'NON_EXISTENT';
 
-        /** @Then an error indicating the variable is missing should occur */
+        /** @Then a missing environment variable exception is expected */
         $this->expectException(EnvironmentVariableMissing::class);
         $this->expectExceptionMessage('Environment variable <NON_EXISTENT> is missing.');
 
-        /** @When I try to get the value of the missing environment variable */
+        /** @When requesting the missing environment variable */
         EnvironmentVariable::from(name: $variable);
     }
 
-    public function testExceptionWhenInvalidIntegerConversion(): void
+    public function testFromWhenScalarPresentInEnvSuperglobalThenValueIsCoerced(): void
     {
-        /** @Given that the environment variable 'INVALID_INT' has an invalid integer value */
+        /** @Given a non-string scalar available only in $_ENV */
+        $_ENV['FROM_ENV_SUPERGLOBAL'] = 42;
+
+        /** @When reading the environment variable */
+        $actual = EnvironmentVariable::from(name: 'FROM_ENV_SUPERGLOBAL')->toString();
+
+        /** @Then the value from $_ENV is coerced to string */
+        self::assertSame('42', $actual);
+    }
+
+    public function testFromWhenScalarPresentInServerSuperglobalThenValueIsCoerced(): void
+    {
+        /** @Given a non-string scalar available only in $_SERVER */
+        $_SERVER['FROM_SERVER_SUPERGLOBAL'] = 7;
+
+        /** @When reading the environment variable */
+        $actual = EnvironmentVariable::from(name: 'FROM_SERVER_SUPERGLOBAL')->toString();
+
+        /** @Then the value from $_SERVER is coerced to string */
+        self::assertSame('7', $actual);
+    }
+
+    public function testFromWhenNonScalarInEnvSuperglobalThenThrowsMissing(): void
+    {
+        /** @Given a non-scalar entry in $_ENV */
+        $_ENV['NON_SCALAR_ENV'] = ['nested' => 'value'];
+
+        /** @Then a missing environment variable exception is expected */
+        $this->expectException(EnvironmentVariableMissing::class);
+
+        /** @When reading the environment variable */
+        EnvironmentVariable::from(name: 'NON_SCALAR_ENV');
+    }
+
+    public function testFromWhenNonScalarInServerSuperglobalThenThrowsMissing(): void
+    {
+        /** @Given a non-scalar entry in $_SERVER */
+        $_SERVER['NON_SCALAR_SERVER'] = ['nested' => 'value'];
+
+        /** @Then a missing environment variable exception is expected */
+        $this->expectException(EnvironmentVariableMissing::class);
+
+        /** @When reading the environment variable */
+        EnvironmentVariable::from(name: 'NON_SCALAR_SERVER');
+    }
+
+    public function testToIntegerWhenValueIsNotNumericThenThrowsEnvironmentValueNotInteger(): void
+    {
+        /** @Given the environment variable holds a non-numeric value */
         putenv(sprintf('%s=%s', 'INVALID_INT', 'invalid-value'));
 
-        /** @Then an error indicating the value cannot be converted to an integer should occur */
-        $this->expectException(InvalidEnvironmentValue::class);
+        /** @Then an invalid integer conversion exception is expected */
+        $this->expectException(EnvironmentValueNotInteger::class);
         $this->expectExceptionMessage(
-            'The value <invalid-value> for environment variable <INVALID_INT> is invalid for conversion to <integer>.'
+            'The value for environment variable <INVALID_INT> is invalid for conversion to <integer>.'
         );
 
-        /** @When I try to convert the invalid value to an integer */
+        /** @When converting the environment variable to integer */
         EnvironmentVariable::from(name: 'INVALID_INT')->toInteger();
     }
 
-    public function testExceptionWhenInvalidBooleanConversion(): void
+    public function testToBooleanWhenValueIsNotBooleanLikeThenThrowsEnvironmentValueNotBoolean(): void
     {
-        /** @Given that the environment variable 'INVALID_BOOL' has an invalid boolean value */
+        /** @Given the environment variable holds a non-boolean-like value */
         putenv(sprintf('%s=%s', 'INVALID_BOOL', 'invalid-value'));
 
-        /** @Then an error indicating the value cannot be converted to a boolean should occur */
-        $this->expectException(InvalidEnvironmentValue::class);
+        /** @Then an invalid boolean conversion exception is expected */
+        $this->expectException(EnvironmentValueNotBoolean::class);
         $this->expectExceptionMessage(
-            'The value <invalid-value> for environment variable <INVALID_BOOL> is invalid for conversion to <boolean>.'
+            'The value for environment variable <INVALID_BOOL> is invalid for conversion to <boolean>.'
         );
 
-        /** @When I try to convert the invalid value to a boolean */
+        /** @When converting the environment variable to boolean */
         EnvironmentVariable::from(name: 'INVALID_BOOL')->toBoolean();
     }
 
@@ -185,20 +291,20 @@ final class EnvironmentVariableTest extends TestCase
     public static function integerConversionDataProvider(): array
     {
         return [
-            'Float value'    => [
-                'value'    => '99.99',
-                'variable' => 'FLOAT_VALUE',
-                'expected' => 99
-            ],
-            'Integer value'  => [
+            'Integer value'    => [
                 'value'    => '123',
                 'variable' => 'VALID_INT',
                 'expected' => 123
             ],
-            'Numeric string' => [
+            'Numeric string'   => [
                 'value'    => '42',
                 'variable' => 'NUMERIC_STRING',
                 'expected' => 42
+            ],
+            'Negative integer' => [
+                'value'    => '-7',
+                'variable' => 'NEGATIVE_INT',
+                'expected' => -7
             ]
         ];
     }

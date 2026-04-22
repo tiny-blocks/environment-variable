@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace TinyBlocks\EnvironmentVariable;
 
+use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentValueNotBoolean;
+use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentValueNotInteger;
 use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentVariableMissing;
-use TinyBlocks\EnvironmentVariable\Internal\Exceptions\InvalidEnvironmentValue;
 
 /**
  * Provides methods to handling environment variables.
@@ -48,7 +49,7 @@ interface Environment
      * Converts the environment variable value to an integer.
      *
      * @return int The environment variable value as an integer.
-     * @throws InvalidEnvironmentValue If the value cannot be converted to an integer.
+     * @throws EnvironmentValueNotInteger If the value cannot be converted to an integer.
      */
     public function toInteger(): int;
 
@@ -56,7 +57,7 @@ interface Environment
      * Converts the environment variable value to a boolean.
      *
      * @return bool The environment variable value as a boolean.
-     * @throws InvalidEnvironmentValue If the value cannot be converted to a boolean.
+     * @throws EnvironmentValueNotBoolean If the value cannot be converted to a boolean.
      */
     public function toBoolean(): bool;
 }
