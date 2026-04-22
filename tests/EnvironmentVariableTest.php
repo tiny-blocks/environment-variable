@@ -387,4 +387,3 @@ final class EnvironmentVariableTest extends TestCase
         ];
     }
 }
-
