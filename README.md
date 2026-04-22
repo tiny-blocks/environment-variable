@@ -8,12 +8,14 @@
 * [License](#license)
 * [Contributing](#contributing)
 
-<div id='overview'></div> 
+<div id='overview'></div>
 
 ## Overview
 
-Provides a simple and flexible solution for managing environment variables, with easy access, type conversions, and
-validation handling.
+Provides a type-safe environment variable reader for PHP, wrapping raw values behind a typed accessor with explicit
+string, integer, and boolean conversion methods. Supports defaults for missing variables and distinguishes between
+absent and empty states. Built to surface configuration errors at read time rather than propagate silent coercions
+through the system.
 
 <div id='installation'></div>
 
@@ -32,16 +34,20 @@ composer require tiny-blocks/environment-variable
 To create and work with environment variables, use the `from` method to get an instance of the environment variable.
 
 ```php
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
 EnvironmentVariable::from(name: 'MY_VAR');
 ```
 
 To retrieve an environment variable with the option of providing a default value in case the variable does not exist,
 use the `fromOrDefault` method.
 
-If the environment variable is not found, the method will return the provided default value instead of throwing an
-exception.
+If the environment variable is not found, the method returns an instance carrying the provided default value instead
+of throwing an exception.
 
 ```php
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
 EnvironmentVariable::fromOrDefault(name: 'MY_VAR', defaultValueIfNotFound: 'default_value');
 ```
 
@@ -54,6 +60,8 @@ Once you have an instance of the environment variable, you can convert its value
 To convert the environment variable to a string.
 
 ```php
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
 $environmentVariable = EnvironmentVariable::from(name: 'MY_VAR');
 $environmentVariable->toString();
 ```
@@ -63,6 +71,8 @@ $environmentVariable->toString();
 To convert the environment variable to an integer.
 
 ```php
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
 $environmentVariable = EnvironmentVariable::from(name: 'MY_VAR');
 $environmentVariable->toInteger();
 ```
@@ -72,6 +82,8 @@ $environmentVariable->toInteger();
 To convert the environment variable to a boolean.
 
 ```php
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
 $environmentVariable = EnvironmentVariable::from(name: 'MY_VAR');
 $environmentVariable->toBoolean();
 ```
@@ -81,11 +93,13 @@ $environmentVariable->toBoolean();
 Checks if the environment variable has a value. Values like `false`, `0`, and `-1` are valid and non-empty.
 
 ```php
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
 $environmentVariable = EnvironmentVariable::from(name: 'MY_VAR');
 $environmentVariable->hasValue();
 ```
 
-<div id='license'></div> 
+<div id='license'></div>
 
 ## License
 
