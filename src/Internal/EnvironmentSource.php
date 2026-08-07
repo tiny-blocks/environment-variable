@@ -4,20 +4,38 @@ declare(strict_types=1);
 
 namespace TinyBlocks\EnvironmentVariable\Internal;
 
-final readonly class EnvironmentSource
+final class EnvironmentSource
 {
+    private const string REQUEST_HEADER_PREFIX = 'HTTP_';
+
+    private function __construct()
+    {
+    }
+
     public static function lookup(string $name): ?string
     {
-        if (array_key_exists($name, $_ENV) && is_scalar($_ENV[$name])) {
-            return (string)$_ENV[$name];
-        }
+        $requestControlled = str_starts_with($name, self::REQUEST_HEADER_PREFIX);
 
-        if (array_key_exists($name, $_SERVER) && is_scalar($_SERVER[$name])) {
-            return (string)$_SERVER[$name];
-        }
+        $value = (self::fromScalar(value: ($_ENV[$name] ?? null))
+            ?? self::fromRequestScope(value: ($_SERVER[$name] ?? null), requestControlled: $requestControlled));
 
-        $value = getenv($name);
+        return ($value ?? self::fromProcess(name: $name, localOnly: $requestControlled));
+    }
+
+    private static function fromScalar(mixed $value): ?string
+    {
+        return is_scalar($value) ? (string)$value : null;
+    }
+
+    private static function fromProcess(string $name, bool $localOnly): ?string
+    {
+        $value = getenv($name, $localOnly);
 
         return $value === false ? null : $value;
+    }
+
+    private static function fromRequestScope(mixed $value, bool $requestControlled): ?string
+    {
+        return $requestControlled ? null : self::fromScalar(value: $value);
     }
 }
