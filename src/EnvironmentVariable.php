@@ -4,61 +4,54 @@ declare(strict_types=1);
 
 namespace TinyBlocks\EnvironmentVariable;
 
+use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentVariableMissing;
 use TinyBlocks\EnvironmentVariable\Internal\EnvironmentSource;
-use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentValueNotBoolean;
-use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentValueNotInteger;
-use TinyBlocks\EnvironmentVariable\Internal\Exceptions\EnvironmentVariableMissing;
+use TinyBlocks\EnvironmentVariable\Internal\EnvironmentValue;
 
 final readonly class EnvironmentVariable implements Environment
 {
-    private function __construct(private string $value, private string $variable)
+    private function __construct(private EnvironmentValue $environmentValue)
     {
     }
 
     public static function from(string $name): EnvironmentVariable
     {
-        $environmentVariable = EnvironmentSource::lookup(name: $name);
+        $value = EnvironmentSource::lookup(name: $name);
 
-        return is_null($environmentVariable)
+        return is_null($value)
             ? throw new EnvironmentVariableMissing(variable: $name)
-            : new EnvironmentVariable(value: $environmentVariable, variable: $name);
+            : new EnvironmentVariable(environmentValue: EnvironmentValue::from(value: $value, variable: $name));
     }
 
     public static function fromOrDefault(string $name, ?string $defaultValueIfNotFound = null): EnvironmentVariable
     {
-        $environmentVariable = EnvironmentSource::lookup(name: $name) ?? $defaultValueIfNotFound ?? '';
+        $value = (EnvironmentSource::lookup(name: $name) ?? $defaultValueIfNotFound ?? '');
 
-        return new EnvironmentVariable(value: $environmentVariable, variable: $name);
+        return new EnvironmentVariable(environmentValue: EnvironmentValue::from(value: $value, variable: $name));
+    }
+
+    public function toFloat(): float
+    {
+        return $this->environmentValue->toFloat();
     }
 
     public function hasValue(): bool
     {
-        return match (strtolower(trim($this->value))) {
-            '', 'null' => false,
-            default    => true
-        };
+        return $this->environmentValue->hasValue();
     }
 
     public function toString(): string
     {
-        return $this->value;
-    }
-
-    public function toInteger(): int
-    {
-        $filteredValue = filter_var($this->value, FILTER_VALIDATE_INT);
-
-        return $filteredValue !== false
-            ? $filteredValue
-            : throw new EnvironmentValueNotInteger(variable: $this->variable);
+        return $this->environmentValue->toString();
     }
 
     public function toBoolean(): bool
     {
-        $filteredValue = filter_var($this->value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        return $this->environmentValue->toBoolean();
+    }
 
-        return $filteredValue !== null
-            ? $filteredValue
-            : throw new EnvironmentValueNotBoolean(variable: $this->variable);
+    public function toInteger(): int
+    {
+        return $this->environmentValue->toInteger();
     }
 }
