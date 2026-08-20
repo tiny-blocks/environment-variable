@@ -1,11 +1,10 @@
 parameters:
-  paths:
-    - src
-    - tests
-  level: max
-  tmpDir: reports/phpstan
-  reportUnmatchedIgnoredErrors: true
-  ignoreErrors:
-    -
-      identifier: missingType.iterableValue
-      path: tests/*
+    level: max
+    paths:
+        - src
+        - tests
+    tmpDir: reports/phpstan
+    ignoreErrors:
+        - identifier: missingType.iterableValue
+          path: tests/*
+    reportUnmatchedIgnoredErrors: true
