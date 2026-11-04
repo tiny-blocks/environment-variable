@@ -8,19 +8,12 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use TinyBlocks\EnvironmentVariable\ApplicationEnvironment;
 use TinyBlocks\EnvironmentVariable\Exceptions\ApplicationEnvironmentUnrecognized;
-use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentVariableMissing;
 
 final class ApplicationEnvironmentTest extends TestCase
 {
-    private const string UNRECOGNIZED_MESSAGE = 'Application environment <qa> is not recognized. Accepted aliases are '
+    private const string UNRECOGNIZED_MESSAGE = 'Application environment is not recognized. Accepted aliases are '
         . '<local, localhost, test, testing, development, dev, develop, staging, stage, homolog, homologation, '
         . 'production, prod>.';
-
-    protected function tearDown(): void
-    {
-        putenv('APP_ENV');
-        unset($_ENV['APP_ENV'], $_SERVER['APP_ENV']);
-    }
 
     #[DataProvider('predicatesDataProvider')]
     public function testPredicatesWhenEvaluatedThenOnlyTheOwnCaseHolds(
@@ -70,43 +63,6 @@ final class ApplicationEnvironmentTest extends TestCase
         self::assertSame($expected, $actual);
     }
 
-    public function testCurrentWhenVariableIsMissingThenThrowsEnvironmentVariableMissing(): void
-    {
-        /** @Given the APP_ENV environment variable is not set */
-        putenv('APP_ENV');
-
-        /** @Then a missing environment variable exception is expected */
-        $this->expectException(EnvironmentVariableMissing::class);
-        $this->expectExceptionMessage('Environment variable <APP_ENV> is missing.');
-
-        /** @When resolving the current application environment */
-        ApplicationEnvironment::current();
-    }
-
-    public function testCurrentWhenVariableIsInEnvSuperglobalThenReturnsMatchingEnvironment(): void
-    {
-        /** @Given the APP_ENV environment variable holds an alias in $_ENV */
-        $_ENV['APP_ENV'] = 'homolog';
-
-        /** @When resolving the current application environment */
-        $actual = ApplicationEnvironment::current();
-
-        /** @Then the matching application environment is returned */
-        self::assertSame(ApplicationEnvironment::STAGING, $actual);
-    }
-
-    public function testCurrentWhenVariableIsInProcessEnvironmentThenReturnsMatchingEnvironment(): void
-    {
-        /** @Given the APP_ENV environment variable holds an alias with mixed casing and padding */
-        putenv(sprintf('%s=%s', 'APP_ENV', ' LocalHost '));
-
-        /** @When resolving the current application environment */
-        $actual = ApplicationEnvironment::current();
-
-        /** @Then the matching application environment is returned */
-        self::assertSame(ApplicationEnvironment::LOCAL, $actual);
-    }
-
     #[DataProvider('unrecognizedAliasesDataProvider')]
     public function testFromAliasWhenAliasIsUnrecognizedThenThrowsApplicationEnvironmentUnrecognized(
         string $alias
@@ -120,17 +76,17 @@ final class ApplicationEnvironmentTest extends TestCase
         ApplicationEnvironment::fromAlias(alias: $alias);
     }
 
-    public function testCurrentWhenVariableHoldsUnrecognizedAliasThenThrowsApplicationEnvironmentUnrecognized(): void
+    public function testFromAliasWhenAliasIsUnrecognizedThenMessageListsAcceptedAliasesWithoutTheAlias(): void
     {
-        /** @Given the APP_ENV environment variable holds an alias no environment recognizes */
-        putenv(sprintf('%s=%s', 'APP_ENV', 'qa'));
+        /** @Given an alias no application environment recognizes, carrying a value that must not leak */
+        $alias = 's3cr3t-value';
 
-        /** @Then an unrecognized application environment exception listing the accepted aliases is expected */
+        /** @Then an unrecognized application environment exception listing only the accepted aliases is expected */
         $this->expectException(ApplicationEnvironmentUnrecognized::class);
-        $this->expectExceptionMessage(self::UNRECOGNIZED_MESSAGE);
+        $this->expectExceptionMessageMatches(sprintf('/^%s$/', preg_quote(self::UNRECOGNIZED_MESSAGE, '/')));
 
-        /** @When resolving the current application environment */
-        ApplicationEnvironment::current();
+        /** @When creating the application environment from the alias */
+        ApplicationEnvironment::fromAlias(alias: $alias);
     }
 
     public static function aliasesDataProvider(): array

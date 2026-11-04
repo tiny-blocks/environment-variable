@@ -5,14 +5,10 @@
 * [Overview](#overview)
 * [Installation](#installation)
 * [How to use](#how-to-use)
-    + [Creating an environment variable](#creating-an-environment-variable)
-    + [Conversions](#conversions)
-        - [Convert to string](#convert-to-string)
-        - [Convert to integer](#convert-to-integer)
-        - [Convert to float](#convert-to-float)
-        - [Convert to boolean](#convert-to-boolean)
-    + [Check if the environment variable has a value](#check-if-the-environment-variable-has-a-value)
     + [Application environment](#application-environment)
+    + [Reading a variable](#reading-a-variable)
+    + [Conversions](#conversions)
+    + [Checking for a value](#checking-for-a-value)
     + [Exceptions](#exceptions)
     + [Resolution order](#resolution-order)
 * [FAQ](#faq)
@@ -23,16 +19,12 @@
 
 ## Overview
 
-Provides a type-safe environment variable reader for PHP, wrapping raw values behind a typed accessor with explicit
-string, integer, float, and boolean conversion methods. Supports defaults for missing variables and distinguishes
-between absent and empty states. Built to surface configuration errors at read time rather than propagate silent
-coercions through the system.
+A type-safe environment variable reader for PHP. A variable converts to string, integer, float, or boolean, raising a
+dedicated exception instead of coercing a value it cannot represent, and tells which environment the application runs
+in through predicates such as `isLocal()` and `isProduction()`, so code never compares raw strings.
 
 Names in the `HTTP_` namespace are read only from sources an HTTP request cannot reach, so a request header is never
 mistaken for configuration. See [Resolution order](#resolution-order).
-
-`ApplicationEnvironment` resolves `APP_ENV` into a fixed set of environments, each recognizing several aliases, so code
-asks `isLocal()` instead of comparing raw strings. See [Application environment](#application-environment).
 
 <div id='installation'></div>
 
@@ -46,124 +38,22 @@ composer require tiny-blocks/environment-variable
 
 ## How to use
 
-### Creating an environment variable
-
-To create and work with environment variables, use the `from` method to get an instance of the environment variable.
-When no source holds the variable, the method raises `EnvironmentVariableMissing`.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
-
-EnvironmentVariable::from(name: 'MY_VAR');
-```
-
-To retrieve an environment variable with the option of providing a default value in case the variable does not exist,
-use the `fromOrDefault` method.
-
-If the environment variable is not found, the method returns an instance carrying the provided default value instead of
-throwing an exception. With no default, the instance carries an empty string.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
-
-EnvironmentVariable::fromOrDefault(name: 'MY_VAR', defaultValueIfNotFound: 'default_value');
-```
-
-### Conversions
-
-Once you have an instance of the environment variable, you can convert its value into various types.
-
-#### Convert to string
-
-To convert the environment variable to a string. The raw value is returned unchanged, with no trimming.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
-
-EnvironmentVariable::from(name: 'MY_VAR')->toString();
-```
-
-#### Convert to integer
-
-To convert the environment variable to an integer. Values that do not represent an integer, including values above
-`PHP_INT_MAX`, raise `EnvironmentValueNotInteger` instead of being silently truncated.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
-
-EnvironmentVariable::from(name: 'MY_VAR')->toInteger();
-```
-
-#### Convert to float
-
-To convert the environment variable to a float. The decimal separator is `.` and thousands separators are not accepted.
-Values that do not represent a float raise `EnvironmentValueNotFloat`.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
-
-EnvironmentVariable::from(name: 'MY_VAR')->toFloat();
-```
-
-#### Convert to boolean
-
-To convert the environment variable to a boolean. The accepted values are `1`, `true`, `on`, and `yes` for true, and
-`0`, `false`, `off`, `no`, and the empty string for false. Anything else raises `EnvironmentValueNotBoolean`.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
-
-EnvironmentVariable::from(name: 'MY_VAR')->toBoolean();
-```
-
-### Check if the environment variable has a value
-
-Checks if the environment variable has a value. Values like `false`, `0`, and `-1` are valid and non-empty. Only an
-empty string, a value made of whitespace, and the literal `null` in any casing report no value.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
-
-EnvironmentVariable::from(name: 'MY_VAR')->hasValue();
-```
-
 ### Application environment
 
-`ApplicationEnvironment` is the environment the application runs in. Use `current` to read it from `APP_ENV`. The
-variable is read through `EnvironmentVariable::from`, so the [resolution order](#resolution-order) applies and a missing
-`APP_ENV` raises `EnvironmentVariableMissing`. Use `fromAlias` when the raw value is already at hand.
+Each predicate answers whether the value of the variable is one of the aliases of its environment, regardless of
+casing and of surrounding whitespace.
 
-Each environment recognizes a set of aliases, matched regardless of casing and of surrounding whitespace, so `local`,
-`LocalHost`, and `LOCALHOST` padded with spaces all resolve to `LOCAL`. A value no environment recognizes raises
-`ApplicationEnvironmentUnrecognized`, whose message lists every accepted alias.
+```php
+<?php
+
+declare(strict_types=1);
+
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
+# With APP_ENV=" LocalHost " in the environment.
+EnvironmentVariable::from(name: 'APP_ENV')->isLocal();      # true
+EnvironmentVariable::from(name: 'APP_ENV')->isProduction(); # false
+```
 
 | Case          | Aliases                                       | Predicate       |
 |---------------|-----------------------------------------------|-----------------|
@@ -173,7 +63,11 @@ Each environment recognizes a set of aliases, matched regardless of casing and o
 | `STAGING`     | `staging`, `stage`, `homolog`, `homologation` | `isStaging`     |
 | `PRODUCTION`  | `production`, `prod`                          | `isProduction`  |
 
-The backing value of each case is its first alias, and `aliases` returns the full list of a case.
+A value no environment recognizes, the empty string included, raises `ApplicationEnvironmentUnrecognized` from every
+predicate instead of answering `false`. See [FAQ](#faq).
+
+The `ApplicationEnvironment` enum owns the table. Use `fromAlias` when a case is needed, for example to `match` on it,
+and `aliases` for the aliases of a case.
 
 ```php
 <?php
@@ -182,13 +76,55 @@ declare(strict_types=1);
 
 use TinyBlocks\EnvironmentVariable\ApplicationEnvironment;
 
-# With APP_ENV=localhost in the environment.
-$environment = ApplicationEnvironment::current();
-
-$environment->isLocal();      # true
-$environment->isProduction(); # false
-
 ApplicationEnvironment::fromAlias(alias: 'Homolog'); # ApplicationEnvironment::STAGING
+ApplicationEnvironment::STAGING->aliases();          # ['staging', 'stage', 'homolog', 'homologation']
+```
+
+### Reading a variable
+
+`from` raises `EnvironmentVariableMissing` when no source holds the variable. `fromOrDefault` carries the default
+instead, or an empty string when no default is given.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
+EnvironmentVariable::from(name: 'MY_VAR');
+EnvironmentVariable::fromOrDefault(name: 'MY_VAR', defaultValueIfNotFound: 'default_value');
+```
+
+### Conversions
+
+| Method      | Returns  | Accepted values                                                                           |
+|-------------|----------|-------------------------------------------------------------------------------------------|
+| `toString`  | `string` | Any value, returned unchanged with no trimming.                                           |
+| `toInteger` | `int`    | An integer within the `int` range. Values outside it raise instead of being truncated.    |
+| `toFloat`   | `float`  | A number with `.` as the decimal separator, no thousands separators.                      |
+| `toBoolean` | `bool`   | `1`, `true`, `on`, `yes` for true. `0`, `false`, `off`, `no`, the empty string for false. |
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+
+# With PORT=8080 and DEBUG=on in the environment.
+EnvironmentVariable::from(name: 'PORT')->toInteger();  # 8080
+EnvironmentVariable::from(name: 'DEBUG')->toBoolean(); # true
+```
+
+### Checking for a value
+
+`hasValue` reports `false` only for an empty string, a value made of whitespace, and the literal `null` in any casing.
+Values like `false`, `0`, and `-1` have a value. Use it before `toBoolean` when a blank variable must not read as
+`false`.
+
+```php
+EnvironmentVariable::from(name: 'MY_VAR')->hasValue();
 ```
 
 ### Exceptions
@@ -196,22 +132,20 @@ ApplicationEnvironment::fromAlias(alias: 'Homolog'); # ApplicationEnvironment::S
 Every failure raises a dedicated class from `TinyBlocks\EnvironmentVariable\Exceptions`. All of them extend
 `InvalidArgumentException`, so a consumer can catch the broad type or the precise one.
 
-| Exception                            | Raised by              | Condition                                        |
-|--------------------------------------|------------------------|--------------------------------------------------|
-| `EnvironmentVariableMissing`         | `from`, `current`      | No source holds the variable.                    |
-| `EnvironmentValueNotInteger`         | `toInteger`            | The value does not represent an integer.         |
-| `EnvironmentValueNotFloat`           | `toFloat`              | The value does not represent a float.            |
-| `EnvironmentValueNotBoolean`         | `toBoolean`            | The value is not a recognized boolean token.     |
-| `ApplicationEnvironmentUnrecognized` | `fromAlias`, `current` | No application environment recognizes the alias. |
+| Exception                            | Raised by                     | Condition                                    |
+|--------------------------------------|-------------------------------|----------------------------------------------|
+| `EnvironmentVariableMissing`         | `from`                        | No source holds the variable.                |
+| `EnvironmentValueNotInteger`         | `toInteger`                   | The value does not represent an integer.     |
+| `EnvironmentValueNotFloat`           | `toFloat`                     | The value does not represent a float.        |
+| `EnvironmentValueNotBoolean`         | `toBoolean`                   | The value is not a recognized boolean token. |
+| `ApplicationEnvironmentUnrecognized` | `is*` predicates, `fromAlias` | No environment recognizes the value.         |
 
-Messages of the conversion exceptions carry the variable name, never its value, so a failed conversion on a secret does
-not leak it into logs or stack traces. `ApplicationEnvironmentUnrecognized` carries the alias it received, because an
-environment name is not a secret and the value is what needs fixing.
+No message carries the value it received, so a failed read on a secret does not leak it into logs or stack traces. The
+conversion exceptions name the variable, and `ApplicationEnvironmentUnrecognized` lists the accepted aliases.
 
 ### Resolution order
 
-A value is resolved from the first source that holds it. Non-scalar entries in the superglobals are skipped, so an array
-left in `$_ENV` never reaches a conversion method.
+A value is resolved from the first source that holds it. Non-scalar entries in the superglobals are skipped.
 
 | Order | Source              | Read for names in the `HTTP_` namespace         |
 |-------|---------------------|-------------------------------------------------|
@@ -221,30 +155,26 @@ left in `$_ENV` never reaches a conversion method.
 
 Under CGI-like servers (PHP-FPM, mod_php, FastCGI), request headers are mapped into `$_SERVER` and into the SAPI
 environment under an `HTTP_` prefix, so a `Proxy` request header surfaces as `HTTP_PROXY`. For names in that namespace
-the library skips `$_SERVER` and reads only the real process environment, which a request cannot write. A variable
-genuinely set in the environment still resolves. See [httpoxy](https://httpoxy.org) for the background.
+the library reads only the real process environment, which a request cannot write. See [httpoxy](https://httpoxy.org).
 
 <div id='faq'></div>
 
 ## FAQ
 
-### 01. Why is a name starting with `HTTP_` not read from `$_SERVER`?
+### 01. Why does an unrecognized environment raise instead of answering `false`?
 
-Because anyone sending a request can write that namespace. Only the request-supplied value is refused, so a variable
-genuinely set in the process environment still resolves. See [Resolution order](#resolution-order).
+Answering `false` turns a typo into the wrong environment. With `APP_ENV=prd`, `isProduction()` answering `false` lets
+every branch guarded by it run non-production behavior in production. Raising `ApplicationEnvironmentUnrecognized`
+surfaces the misconfiguration at read time, with the accepted aliases in the message.
 
-### 02. Why does `toBoolean` return `false` for an empty value instead of raising?
+### 02. What breaks when upgrading from 2.x to 3.0.0?
 
-The empty string is one of the values PHP's boolean filter recognizes as false, alongside `0`, `off`, and `no`. A
-variable declared but left blank therefore reads as `false`. Use `hasValue` first when the difference between blank and
-false matters.
-
-### 03. Why does an unrecognized `APP_ENV` raise instead of falling back to a default?
-
-A silent fallback turns a typo into the wrong environment. Falling back to `PRODUCTION` would run a misconfigured local
-setup against production behavior, and falling back to `LOCAL` would relax production. Raising
-`ApplicationEnvironmentUnrecognized` at read time surfaces the misconfiguration where it is introduced, with the
-accepted aliases in the message.
+- `Environment` declares `isLocal`, `isTest`, `isDevelopment`, `isStaging`, and `isProduction`. A class of your own
+  implementing `Environment` must add them.
+- `ApplicationEnvironment::current()` is removed. Replace `ApplicationEnvironment::current()->isLocal()` with
+  `EnvironmentVariable::from(name: 'APP_ENV')->isLocal()`, or pass the value to `ApplicationEnvironment::fromAlias`
+  when a case is needed.
+- The message of `ApplicationEnvironmentUnrecognized` no longer contains the value received.
 
 <div id='license'></div>
 

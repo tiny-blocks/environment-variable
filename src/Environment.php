@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace TinyBlocks\EnvironmentVariable;
 
+use TinyBlocks\EnvironmentVariable\Exceptions\ApplicationEnvironmentUnrecognized;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotBoolean;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotFloat;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotInteger;
@@ -38,6 +39,28 @@ interface Environment
     public static function fromOrDefault(string $name, ?string $defaultValueIfNotFound = null): Environment;
 
     /**
+     * Tells whether the variable names the test environment.
+     *
+     * <p>The value is matched against the aliases of {@see ApplicationEnvironment::TEST}, regardless of
+     * casing and of surrounding whitespace.</p>
+     *
+     * @return bool True if the value is an alias of the test environment, false if it names another one.
+     * @throws ApplicationEnvironmentUnrecognized If no application environment recognizes the value.
+     */
+    public function isTest(): bool;
+
+    /**
+     * Tells whether the variable names the local environment.
+     *
+     * <p>The value is matched against the aliases of {@see ApplicationEnvironment::LOCAL}, regardless of
+     * casing and of surrounding whitespace.</p>
+     *
+     * @return bool True if the value is an alias of the local environment, false if it names another one.
+     * @throws ApplicationEnvironmentUnrecognized If no application environment recognizes the value.
+     */
+    public function isLocal(): bool;
+
+    /**
      * Converts the environment variable value to a float.
      *
      * @return float The environment variable value as a float.
@@ -60,6 +83,17 @@ interface Environment
     public function toString(): string;
 
     /**
+     * Tells whether the variable names the staging environment.
+     *
+     * <p>The value is matched against the aliases of {@see ApplicationEnvironment::STAGING}, regardless of
+     * casing and of surrounding whitespace.</p>
+     *
+     * @return bool True if the value is an alias of the staging environment, false if it names another one.
+     * @throws ApplicationEnvironmentUnrecognized If no application environment recognizes the value.
+     */
+    public function isStaging(): bool;
+
+    /**
      * Converts the environment variable value to a boolean.
      *
      * @return bool The environment variable value as a boolean.
@@ -74,4 +108,26 @@ interface Environment
      * @throws EnvironmentValueNotInteger If the value cannot be converted to an integer.
      */
     public function toInteger(): int;
+
+    /**
+     * Tells whether the variable names the production environment.
+     *
+     * <p>The value is matched against the aliases of {@see ApplicationEnvironment::PRODUCTION}, regardless of
+     * casing and of surrounding whitespace.</p>
+     *
+     * @return bool True if the value is an alias of the production environment, false if it names another one.
+     * @throws ApplicationEnvironmentUnrecognized If no application environment recognizes the value.
+     */
+    public function isProduction(): bool;
+
+    /**
+     * Tells whether the variable names the development environment.
+     *
+     * <p>The value is matched against the aliases of {@see ApplicationEnvironment::DEVELOPMENT}, regardless of
+     * casing and of surrounding whitespace.</p>
+     *
+     * @return bool True if the value is an alias of the development environment, false if it names another one.
+     * @throws ApplicationEnvironmentUnrecognized If no application environment recognizes the value.
+     */
+    public function isDevelopment(): bool;
 }

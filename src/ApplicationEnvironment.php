@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace TinyBlocks\EnvironmentVariable;
 
 use TinyBlocks\EnvironmentVariable\Exceptions\ApplicationEnvironmentUnrecognized;
-use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentVariableMissing;
 
 /**
  * Environment the application runs in, resolved from the aliases each environment recognizes.
@@ -16,25 +15,27 @@ use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentVariableMissing;
  */
 enum ApplicationEnvironment: string
 {
+    private const array ENVIRONMENTS_BY_ALIAS = [
+        'local'        => self::LOCAL,
+        'localhost'    => self::LOCAL,
+        'test'         => self::TEST,
+        'testing'      => self::TEST,
+        'development'  => self::DEVELOPMENT,
+        'dev'          => self::DEVELOPMENT,
+        'develop'      => self::DEVELOPMENT,
+        'staging'      => self::STAGING,
+        'stage'        => self::STAGING,
+        'homolog'      => self::STAGING,
+        'homologation' => self::STAGING,
+        'production'   => self::PRODUCTION,
+        'prod'         => self::PRODUCTION
+    ];
+
     case LOCAL = 'local';
     case TEST = 'test';
     case DEVELOPMENT = 'development';
     case STAGING = 'staging';
     case PRODUCTION = 'production';
-
-    /**
-     * Creates an ApplicationEnvironment from the <code>APP_ENV</code> environment variable.
-     *
-     * <p>The variable is read through {@see EnvironmentVariable}, so the same resolution order applies.</p>
-     *
-     * @return ApplicationEnvironment The environment matching the value of <code>APP_ENV</code>.
-     * @throws EnvironmentVariableMissing If <code>APP_ENV</code> is not set.
-     * @throws ApplicationEnvironmentUnrecognized If no environment recognizes the value of <code>APP_ENV</code>.
-     */
-    public static function current(): ApplicationEnvironment
-    {
-        return ApplicationEnvironment::fromAlias(alias: EnvironmentVariable::from(name: 'APP_ENV')->toString());
-    }
 
     /**
      * Creates an ApplicationEnvironment from one of its aliases.
@@ -47,12 +48,7 @@ enum ApplicationEnvironment: string
     {
         $candidate = strtolower(trim($alias));
 
-        $recognized = array_find(
-            ApplicationEnvironment::cases(),
-            static fn(ApplicationEnvironment $environment): bool => in_array($candidate, $environment->aliases(), true)
-        );
-
-        return ($recognized ?? throw new ApplicationEnvironmentUnrecognized(alias: $alias));
+        return (self::ENVIRONMENTS_BY_ALIAS[$candidate] ?? throw new ApplicationEnvironmentUnrecognized());
     }
 
     /**
@@ -72,13 +68,7 @@ enum ApplicationEnvironment: string
      */
     public function aliases(): array
     {
-        return match ($this) {
-            self::LOCAL       => ['local', 'localhost'],
-            self::TEST        => ['test', 'testing'],
-            self::DEVELOPMENT => ['development', 'dev', 'develop'],
-            self::STAGING     => ['staging', 'stage', 'homolog', 'homologation'],
-            self::PRODUCTION  => ['production', 'prod']
-        };
+        return array_keys(self::ENVIRONMENTS_BY_ALIAS, $this);
     }
 
     /**
