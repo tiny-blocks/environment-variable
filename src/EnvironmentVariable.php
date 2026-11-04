@@ -30,6 +30,16 @@ final readonly class EnvironmentVariable implements Environment
         return new EnvironmentVariable(environmentValue: EnvironmentValue::from(value: $value, variable: $name));
     }
 
+    public function isTest(): bool
+    {
+        return $this->environmentValue->toApplicationEnvironment()->isTest();
+    }
+
+    public function isLocal(): bool
+    {
+        return $this->environmentValue->toApplicationEnvironment()->isLocal();
+    }
+
     public function toFloat(): float
     {
         return $this->environmentValue->toFloat();
@@ -45,6 +55,11 @@ final readonly class EnvironmentVariable implements Environment
         return $this->environmentValue->toString();
     }
 
+    public function isStaging(): bool
+    {
+        return $this->environmentValue->toApplicationEnvironment()->isStaging();
+    }
+
     public function toBoolean(): bool
     {
         return $this->environmentValue->toBoolean();
@@ -53,5 +68,15 @@ final readonly class EnvironmentVariable implements Environment
     public function toInteger(): int
     {
         return $this->environmentValue->toInteger();
+    }
+
+    public function isProduction(): bool
+    {
+        return $this->environmentValue->toApplicationEnvironment()->isProduction();
+    }
+
+    public function isDevelopment(): bool
+    {
+        return $this->environmentValue->toApplicationEnvironment()->isDevelopment();
     }
 }

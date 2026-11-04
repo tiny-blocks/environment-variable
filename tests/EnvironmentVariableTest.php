@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Test\TinyBlocks\EnvironmentVariable;
 
+use Closure;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use TinyBlocks\EnvironmentVariable\Environment;
 use TinyBlocks\EnvironmentVariable\EnvironmentVariable;
+use TinyBlocks\EnvironmentVariable\Exceptions\ApplicationEnvironmentUnrecognized;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotBoolean;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotFloat;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotInteger;
@@ -16,6 +19,7 @@ final class EnvironmentVariableTest extends TestCase
 {
     private const array MANAGED_VARIABLES = [
         'MY_VAR',
+        'APP_ENV',
         'VALID_INT',
         'INVALID_INT',
         'VALID_FLOAT',
@@ -49,6 +53,10 @@ final class EnvironmentVariableTest extends TestCase
         'NON_EXISTENT_MY_VAR',
         'FROM_SERVER_SUPERGLOBAL'
     ];
+
+    private const string UNRECOGNIZED_MESSAGE = 'Application environment is not recognized. Accepted aliases are '
+        . '<local, localhost, test, testing, development, dev, develop, staging, stage, homolog, homologation, '
+        . 'production, prod>.';
 
     protected function tearDown(): void
     {
@@ -317,6 +325,30 @@ final class EnvironmentVariableTest extends TestCase
         self::assertSame('', $actual->toString());
     }
 
+    #[DataProvider('recognizedAliasesDataProvider')]
+    public function testPredicatesWhenValueIsRecognizedAliasThenOnlyItsEnvironmentHolds(
+        string $alias,
+        array $expected
+    ): void {
+        /** @Given the APP_ENV environment variable holds a recognized alias, in any casing and padding */
+        putenv(sprintf('%s=%s', 'APP_ENV', $alias));
+
+        /** @And the environment variable read from it */
+        $variable = EnvironmentVariable::from(name: 'APP_ENV');
+
+        /** @When evaluating every environment predicate */
+        $actual = [
+            'isTest'        => $variable->isTest(),
+            'isLocal'       => $variable->isLocal(),
+            'isStaging'     => $variable->isStaging(),
+            'isProduction'  => $variable->isProduction(),
+            'isDevelopment' => $variable->isDevelopment()
+        ];
+
+        /** @Then only the predicate of the environment that recognizes the alias holds */
+        self::assertSame($expected, $actual);
+    }
+
     public function testFromWhenRequestScopedNameOnlyInServerSuperglobalThenThrowsMissing(): void
     {
         /** @Given a request header mapped into $_SERVER under the HTTP_ namespace */
@@ -357,6 +389,34 @@ final class EnvironmentVariableTest extends TestCase
 
         /** @When converting the environment variable to boolean */
         EnvironmentVariable::from(name: 'INVALID_BOOL')->toBoolean();
+    }
+
+    public function testIsProductionWhenDefaultedToBlankThenThrowsApplicationEnvironmentUnrecognized(): void
+    {
+        /** @Given the APP_ENV environment variable is read without a default while it is not set */
+        $variable = EnvironmentVariable::fromOrDefault(name: 'APP_ENV');
+
+        /** @Then an unrecognized application environment exception is expected */
+        $this->expectException(ApplicationEnvironmentUnrecognized::class);
+        $this->expectExceptionMessage(self::UNRECOGNIZED_MESSAGE);
+
+        /** @When telling whether the variable names the production environment */
+        $variable->isProduction();
+    }
+
+    #[DataProvider('environmentPredicatesDataProvider')]
+    public function testPredicateWhenValueIsUnrecognizedThenThrowsApplicationEnvironmentUnrecognized(
+        Closure $predicate
+    ): void {
+        /** @Given the APP_ENV environment variable holds a value no environment recognizes */
+        putenv(sprintf('%s=%s', 'APP_ENV', 's3cr3t-value'));
+
+        /** @Then an unrecognized application environment exception that does not leak the value is expected */
+        $this->expectException(ApplicationEnvironmentUnrecognized::class);
+        $this->expectExceptionMessageMatches(sprintf('/^%s$/', preg_quote(self::UNRECOGNIZED_MESSAGE, '/')));
+
+        /** @When evaluating an environment predicate on the variable */
+        $predicate(EnvironmentVariable::from(name: 'APP_ENV'));
     }
 
     public static function hasValueDataProvider(): array
@@ -506,6 +566,97 @@ final class EnvironmentVariableTest extends TestCase
                 'value'    => '-7',
                 'variable' => 'NEGATIVE_INT',
                 'expected' => -7
+            ]
+        ];
+    }
+
+    public static function recognizedAliasesDataProvider(): array
+    {
+        return [
+            'Local'            => [
+                'alias'    => 'local',
+                'expected' => [
+                    'isTest'        => false,
+                    'isLocal'       => true,
+                    'isStaging'     => false,
+                    'isProduction'  => false,
+                    'isDevelopment' => false
+                ]
+            ],
+            'Localhost padded' => [
+                'alias'    => ' LocalHost ',
+                'expected' => [
+                    'isTest'        => false,
+                    'isLocal'       => true,
+                    'isStaging'     => false,
+                    'isProduction'  => false,
+                    'isDevelopment' => false
+                ]
+            ],
+            'Testing'          => [
+                'alias'    => 'testing',
+                'expected' => [
+                    'isTest'        => true,
+                    'isLocal'       => false,
+                    'isStaging'     => false,
+                    'isProduction'  => false,
+                    'isDevelopment' => false
+                ]
+            ],
+            'Dev uppercase'    => [
+                'alias'    => 'DEV',
+                'expected' => [
+                    'isTest'        => false,
+                    'isLocal'       => false,
+                    'isStaging'     => false,
+                    'isProduction'  => false,
+                    'isDevelopment' => true
+                ]
+            ],
+            'Homolog'          => [
+                'alias'    => 'homolog',
+                'expected' => [
+                    'isTest'        => false,
+                    'isLocal'       => false,
+                    'isStaging'     => true,
+                    'isProduction'  => false,
+                    'isDevelopment' => false
+                ]
+            ],
+            'Production'       => [
+                'alias'    => 'production',
+                'expected' => [
+                    'isTest'        => false,
+                    'isLocal'       => false,
+                    'isStaging'     => false,
+                    'isProduction'  => true,
+                    'isDevelopment' => false
+                ]
+            ],
+            'Prod with tabs'   => [
+                'alias'    => "\tProd\t",
+                'expected' => [
+                    'isTest'        => false,
+                    'isLocal'       => false,
+                    'isStaging'     => false,
+                    'isProduction'  => true,
+                    'isDevelopment' => false
+                ]
+            ]
+        ];
+    }
+
+    public static function environmentPredicatesDataProvider(): array
+    {
+        return [
+            'Is test'        => ['predicate' => static fn(Environment $environment): bool => $environment->isTest()],
+            'Is local'       => ['predicate' => static fn(Environment $environment): bool => $environment->isLocal()],
+            'Is staging'     => ['predicate' => static fn(Environment $environment): bool => $environment->isStaging()],
+            'Is production'  => [
+                'predicate' => static fn(Environment $environment): bool => $environment->isProduction()
+            ],
+            'Is development' => [
+                'predicate' => static fn(Environment $environment): bool => $environment->isDevelopment()
             ]
         ];
     }

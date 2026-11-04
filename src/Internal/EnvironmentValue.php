@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace TinyBlocks\EnvironmentVariable\Internal;
 
+use TinyBlocks\EnvironmentVariable\ApplicationEnvironment;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotBoolean;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotFloat;
 use TinyBlocks\EnvironmentVariable\Exceptions\EnvironmentValueNotInteger;
@@ -55,5 +56,10 @@ final readonly class EnvironmentValue
         return $filteredValue !== false
             ? $filteredValue
             : throw new EnvironmentValueNotInteger(variable: $this->variable);
+    }
+
+    public function toApplicationEnvironment(): ApplicationEnvironment
+    {
+        return ApplicationEnvironment::fromAlias(alias: $this->value);
     }
 }
