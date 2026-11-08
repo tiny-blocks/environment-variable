@@ -167,15 +167,6 @@ Answering `false` turns a typo into the wrong environment. With `APP_ENV=prd`, `
 every branch guarded by it run non-production behavior in production. Raising `ApplicationEnvironmentUnrecognized`
 surfaces the misconfiguration at read time, with the accepted aliases in the message.
 
-### 02. What breaks when upgrading from 2.x to 3.0.0?
-
-- `Environment` declares `isLocal`, `isTest`, `isDevelopment`, `isStaging`, and `isProduction`. A class of your own
-  implementing `Environment` must add them.
-- `ApplicationEnvironment::current()` is removed. Replace `ApplicationEnvironment::current()->isLocal()` with
-  `EnvironmentVariable::from(name: 'APP_ENV')->isLocal()`, or pass the value to `ApplicationEnvironment::fromAlias`
-  when a case is needed.
-- The message of `ApplicationEnvironmentUnrecognized` no longer contains the value received.
-
 <div id='license'></div>
 
 ## License
